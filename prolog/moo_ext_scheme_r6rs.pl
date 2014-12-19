@@ -1,3 +1,35 @@
+:- style_check(-singleton).
+:- style_check(-discontiguous).
+% :- style_check(-atom).
+:- set_prolog_flag(double_quotes, codes). 
+
+/*
+ Implementation of R6RS Appendix A
+
+Try R6RS Scheme!
+
+
+ Introduction
+
+Revised^6 Report on the Algorithmic Language Scheme (R6RS) defines
+the operational semantics for Scheme in Appendix A.
+
+  http://www.r6rs.org/final/html/r6rs/r6rs-Z-H-15.html#node_chap_A
+
+This program is a implementation of it.
+
+
+How to use
+
+Run SWI-Prolog and use evaluate/1 like this:
+?- evaluate("(car '(a b c))").
+
+
+*/
+
+:- set_prolog_flag(double_quotes, codes). 
+
+
 %%% grammar
 
 ip([ip, N]) :- number(N), !.
@@ -664,7 +696,7 @@ reduce([store, St, E1], [store, St, Next1]) :-
 reduce(P1, Next) :-
   ctx_p(P1, [apply, Nonproc|Vs], Next,
         [raise, ['make-cond','can\'t apply non-procedure']], normal),
-format('~p~n',[Nonproc]),
+ format('~p~n',[Nonproc]),
   nonproc(Nonproc), v_s(Vs).
 reduce(P1, Next) :-
   ctx_p(P1, [apply, Proc|Vs_V], Next,
@@ -1141,7 +1173,7 @@ print_list(St, CAR, CDR) :-
   print_obj(St, CDR), !.
 
 
-gen_atom(X) :- gensym('#:G', X).
+gen_atom(X) :- (atom(X)->true;gensym('#:G', X)).
 gen_num(X) :- gensym('', Y), atom_number(Y, X).
 
 %% If your Prolog system does not have gensym/1, you can use following  code
@@ -1154,3 +1186,70 @@ gen_num(X) :- gensym('', Y), atom_number(Y, X).
 % gen_num(X) :- number(X), assert(num_content(X)), !.
 % gen_num(X) :- num_content(X),retract(num_content(X)), !,
 %  Y is X+1, assert(num_content(Y)).
+
+:- evaluate("(car '(a b c))").
+
+
+:-evaluate("(define-syntax define-macro
+  (lambda (x)
+    \"Define a defmacro.\"
+    (syntax-case x ()
+      ((_ (macro . args) doc body1 body ...)
+       (string? (syntax->datum #'doc))
+       #'(define-macro macro doc (lambda args body1 body ...)))
+      ((_ (macro . args) body ...)
+       #'(define-macro macro #f (lambda args body ...)))
+      ((_ macro transformer)
+       #'(define-macro macro #f transformer))
+      ((_ macro doc transformer)
+       (or (string? (syntax->datum #'doc))
+           (not (syntax->datum #'doc)))
+       #'(define-syntax macro
+           (lambda (y)
+             doc
+             #((macro-type . defmacro)
+               (defmacro-args args))
+             (syntax-case y ()
+               ((_ . args)
+                (let ((v (syntax->datum #'args)))
+                  (datum->syntax y (apply transformer v)))))))))))").
+
+
+:- evaluate("(define is-quote-expression?
+  (lambda (v)
+    (equal? (car v) 'quote)
+    (is-quotation? (cdr v)))))").
+
+
+
+:- evaluate("(define is-quotation?
+  (lambda (v)
+    (or (number? v)
+        (boolean? v)
+        (char? v)
+        (string? v)
+        (symbol? v)
+        (null? v)
+        (and (pair? v)
+             (is-quotation? (car v))
+             (is-quotation? (cdr v)))))").
+:-evaluate(" (is-quote-expression? (quote (quote 42))))").
+
+:-evaluate(
+"(define-syntax define-macro
+  (lambda (x)
+    (syntax-case x ()
+      ((_ (macro . args) body ...)
+       #'(define-macro macro (lambda args body ...)))
+      ((_ macro transformer)
+       #'(define-syntax macro
+           (lambda (y)
+             (syntax-case y ()
+               ((_ . args)
+                (let ((v (syntax->datum #'args)))
+                  (datum->syntax y (apply transformer v)))))))))))"
+                  ).
+
+
+
+
